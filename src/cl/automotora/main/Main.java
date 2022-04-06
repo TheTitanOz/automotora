@@ -1,6 +1,7 @@
 package cl.automotora.main;
 
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.Scanner;
 
 import cl.automotora.model.Camioneta;
@@ -20,22 +21,22 @@ public class Main {
 		// Generar el listado de vehículos iniciales asumiendo que el admin no agrega vehículos.
 		
 		for (int i = 0; i<3; i+=1) {
-			String patente = String.format("ABCD%d%d", (i+1), (i+2));
+			String patente = generatePatente();
 			camionetasList.add( new Camioneta(patente,i) );
 		}
 		
 		for (int i = 0; i<7; i+=1) {
-			String patente = String.format("BDEF%d%d", (i+1), (i+2));
+			String patente = generatePatente();
 			suvList.add(new SUV(patente, i%2==0,i));
 		}
 		
 		for (int i = 0; i<4; i+=1) {
-			String patente = String.format("EFGH%d%d", (i+1), (i+2));
+			String patente = generatePatente();
 			sedanList.add(new Sedan(patente,i));
 		}
 		
 		for (int i = 0; i<1; i+=1) {
-			String patente = String.format("HIJK%d%d", (i+1), (i+2));
+			String patente = generatePatente();
 			coupeList.add(new Coupe(patente,i));
 		}
 		
@@ -57,133 +58,270 @@ public class Main {
 			System.out.println("[2]. Devolver");
 			System.out.println("[3]. Verificar");
 			System.out.println("[4]. Montos recaudados");
-			
 			System.out.println("[0]. Salir");
-			
-			System.out.println("Seleccione una opcion;");
+			System.out.println("Seleccione una opción:");
 			opcionTexto = scan.nextLine();
-			opcion = Integer.parseInt(opcionTexto);
 			
+			try {
+				opcion = Integer.parseInt(opcionTexto);
+			} catch( NumberFormatException err ) {
+				opcion = -1;
+			}
 			
 			if (opcion == 0) {
 				// Salir
 			} else if (opcion == 1) {
 				// arrendar
-				_arrendarAutomoviles(scan, camionetasList, suvList, sedanList, coupeList);
+				String opcionArriendo;
+				do {
+					System.out.println("\tIngrese si desea una camioneta, un suv, un sedan o un coupe. O enter para volver:");
+					opcionArriendo = scan.nextLine();
+					if (opcionArriendo.equals("")) {
+						// atras
+					} else if (opcionArriendo.toLowerCase().equals("camioneta")) {
+						camionetasList = onRentCamioneta(scan, camionetasList, true);
+					} else if (opcionArriendo.toLowerCase().equals("suv")) {
+						suvList = onRentSUV(scan, suvList, true);
+					} else if (opcionArriendo.toLowerCase().equals("sedan")) {
+						sedanList = onRentSedan(scan, sedanList, true);
+					} else if (opcionArriendo.toLowerCase().equals("coupe")) {
+						coupeList = onRentCoupe(scan, coupeList, true);
+					} else {
+						System.out.println("\tOpción no encontrada");
+					}
+				} while (!opcionArriendo.equals(""));
 			} else if (opcion == 2) {
-
+				// devolver
+				String opcionDevolver;
+				do {
+					System.out.println("\tIngrese si desea devolver una camioneta, un suv, un sedan o un coupe. O enter para volver:");
+					opcionDevolver = scan.nextLine();
+					if (opcionDevolver.equals("")) {
+						// atras
+					} else if (opcionDevolver.toLowerCase().equals("camioneta")) {
+						camionetasList = onRentCamioneta(scan, camionetasList,false);
+					} else if (opcionDevolver.toLowerCase().equals("suv")) {
+						suvList = onRentSUV(scan, suvList,false);
+					} else if (opcionDevolver.toLowerCase().equals("sedan")) {
+						sedanList = onRentSedan(scan, sedanList,false);
+					} else if (opcionDevolver.toLowerCase().equals("coupe")) {
+						coupeList = onRentCoupe(scan, coupeList,false);
+					} else {
+						System.out.println("\tOpción no encontrada");
+					}
+				} while (!opcionDevolver.equals(""));
 			} else if ( opcion == 3 ) {
-				
-				listarAutomoviles(camionetasList, suvList, sedanList, coupeList);
-				
+				// listar
+				System.out.println("\tAutomoviles disponibles");
+				System.out.println("\t-----------------------");
+				listarAutomoviles(camionetasList, suvList, sedanList, coupeList, true);
+				System.out.println("\n\tAutomoviles NO disponibles");
+				System.out.println("\t--------------------------");
+				listarAutomoviles(camionetasList, suvList, sedanList, coupeList, false);
 			} else if ( opcion == 4 ) {
-				
+				// montos recaudados
+				System.out.printf("\n\n\t Total en disponibles %d\n\n", sumarArriendos(camionetasList, suvList, sedanList, coupeList));
 			} else {
 				System.out.println("Opción no valida.");
 			}
 			
-			
 		} while(opcion != 0);
 		
 	}
-	
 	/**
-	 * Este método me permite ARRENDAR un vehículo por medio de la patente.
-	 * @param _scan es nuestro parámetro de interaccion con el usuairo
+	 * Permite arrendar una camioneta
+	 * @param _scan interacción con el usuario
 	 * @param _camionetasList
-	 * @param _suvList
-	 * @param _sedanList
-	 * @param _coupeList
+	 * @param _arrendar indica si es arriendo (true) o es devolver (false) 
+	 * @return return el arreglo de objeto con los cambios de la camioneta
 	 */
-	private static void _arrendarAutomoviles (
-			Scanner _scan,
-			ArrayList<Camioneta> _camionetasList,
-			ArrayList<SUV> _suvList,
-			ArrayList<Sedan> _sedanList,
-			ArrayList<Coupe> _coupeList
-	) {
-
-		for (int i =0; i<_camionetasList.size(); i+=1) {
+	private static ArrayList<Camioneta> onRentCamioneta(Scanner _scan, ArrayList<Camioneta> _camionetasList, boolean _arrendar) {
+		
+		int x=0;
+		for (int i=0; i<_camionetasList.size(); i+=1) {
 			Camioneta camionetaObjeto = _camionetasList.get(i);
-			if (camionetaObjeto.isDisponible()) {
+			if (camionetaObjeto.isDisponible() == _arrendar) {
 				System.out.println("\t"+camionetaObjeto.conocerAuto());
+				x++;
 			}
 		}
 		
-		for (int i =0; i<_suvList.size(); i+=1) {
-			SUV suvObjeto = _suvList.get(i);
-			if (suvObjeto.isDisponible()) {
-				System.out.println("\t"+suvObjeto.conocerAuto());
-			}
-		}
-		for (int i =0; i<_sedanList.size(); i+=1) {
-			Sedan sedanObjeto = _sedanList.get(i);
-			if (sedanObjeto.isDisponible()) {
-				System.out.println("\t"+sedanObjeto.conocerAuto());
-			}
-		}
-		for (int i =0; i<_coupeList.size(); i+=1) {
-			Coupe coupeObjeto = _coupeList.get(i);
-			if (coupeObjeto.isDisponible()) {
-				System.out.println("\t"+coupeObjeto.conocerAuto());
-			}
-		}
-		
-		String opcionPatente;
-		
-		
-		Camioneta camioneta = null;
-		SUV suv = null;
-		Sedan sedan = null;
-		Coupe coupe = null;
-		
-		
-		do {
-			System.out.println("\tIngrese una patente o enter para salir:");
-			opcionPatente = _scan.nextLine();
-			
-			// obtengo el objeto que voy a modificar.
-			camioneta = getCamionetaByPatente(_camionetasList, opcionPatente, true);
-			if (camioneta == null) {
-				suv = getSUVByPatente(_suvList, opcionPatente, true);
-				if (suv == null) {
-					sedan = getSedanByPatente(_sedanList, opcionPatente, true);
-					if (sedan == null) {
-						coupe  = getCoupeByPatente(_coupeList,opcionPatente, true);
+		if (x == 0) {
+			System.out.println("No hay vehículos para " + (_arrendar? "arrendar":"devolver") + ".");
+		} else {
+
+			String opcionPatente;
+			Camioneta camioneta = null;
+
+			do {
+				System.out.println("\tIngrese una patente o enter para salir:");
+				opcionPatente = _scan.nextLine();
+
+				if (opcionPatente.equals("")) {
+					//salir
+				} else {
+					camioneta = getCamionetaByPatente(_camionetasList, opcionPatente, true);
+					if ( camioneta != null ) {
+						camioneta.setDisponible(!_arrendar);
+						_camionetasList.set(camioneta.getPosicion(), camioneta);
+						System.out.println("\tCamioneta modificada correctamente.");
+					} else {
+						System.out.println("\tLa patente no existe!");
 					}
 				}
-			}
-			
-			// valido si la patente existe en alguna de las listas.
-			if ( (camioneta != null || suv != null) || (sedan != null || coupe != null)) { // la patente existe
-			
-				// i) (false || false ) || (true || false) 
-				// ii)     false        ||       true
-				// iii)				true
 				
-				// ¿dónde está la patente?
-				if (camioneta != null) {
-					camioneta.setDisponible(false);
-					_camionetasList.set(camioneta.getPosicion(), camioneta);
-					System.out.println("\tCamioneta modificada correctamente.");
-				} else if (suv != null) {
-					suv.setDisponible(false);
-					_suvList.set(suv.getPosicion(), suv);
-					System.out.println("\tSUV modificada correctamente.");
-				} else if (sedan != null) {
-					sedan.setDisponible(false);
-					_sedanList.set(sedan.getPosicion(), sedan);
-					System.out.println("\tSedan modificada correctamente.");
-				} else if (coupe != null) {
-					coupe.setDisponible(false);
-					_coupeList.set(coupe.getPosicion(), coupe);
-					System.out.println("\tCoupe modificada correctamente.");
-				}
-			} else {
-				System.out.println("\tLa patente no existe!");
-			}
+			} while(!opcionPatente.equals(""));
 			
-		} while(!opcionPatente.equals(""));
+		
+		}
+
+		return _camionetasList;
+	}
+	
+	/**
+	 * Arrendar un SUV
+	 * @param _scan
+	 * @param _suvList
+	 * @param _arrendar indica si es arriendo (true) o es devolver (false) 
+	 * @return retorno el arreglo de objetos del suv
+	 */
+	private static ArrayList<SUV> onRentSUV(Scanner _scan, ArrayList<SUV> _suvList, boolean _arrendar) {
+
+		int x=0;
+		for (int i=0; i<_suvList.size(); i+=1) {
+			SUV suvObjeto = _suvList.get(i);
+			if (suvObjeto.isDisponible() == _arrendar) {
+				System.out.println("\t"+suvObjeto.conocerAuto());
+				x++;
+			}
+		}
+
+		if (x == 0) {
+			System.out.println("No hay vehículos para " + (_arrendar? "arrendar":"devolver") + ".");
+		} else {
+			String opcionPatente;
+			SUV suv = null;
+	
+			do {
+				System.out.println("\tIngrese una patente o enter para salir:");
+				opcionPatente = _scan.nextLine();
+	
+				if (opcionPatente.equals("")) {
+					//salir
+				} else {
+					suv = getSUVByPatente(_suvList, opcionPatente, _arrendar);
+					if ( suv != null ) {
+						suv.setDisponible(!_arrendar);
+						_suvList.set(suv.getPosicion(), suv);
+						System.out.println("\tSUV modificada correctamente.");
+					} else {
+						System.out.println("\tLa patente no existe!");
+					}
+				}
+				
+			} while(!opcionPatente.equals(""));
+
+		}
+	
+		return _suvList;
+	}
+	
+
+	/**
+	 * Arrendar Sedan
+	 * @param _scan
+	 * @param _sedanList
+	 * @param _arrendar indica si es arriendo (true) o es devolver (false) 
+	 * @return retorno el arreglo de objetos del sedan
+	 */
+	private static ArrayList<Sedan> onRentSedan(Scanner _scan, ArrayList<Sedan> _sedanList, boolean _arrendar) {
+		
+		int x=0;
+		for (int i=0; i<_sedanList.size(); i+=1) {
+			Sedan sedanObjeto = _sedanList.get(i);
+			if (sedanObjeto.isDisponible() == _arrendar) {
+				System.out.println("\t"+sedanObjeto.conocerAuto());
+				x++;
+			}
+		}
+		
+
+		if (x == 0) {
+			System.out.println("No hay vehículos para " + (_arrendar? "arrendar":"devolver") + ".");
+		} else {
+			String opcionPatente;
+			Sedan sedan = null;
+			
+			do {
+				System.out.println("\tIngrese una patente o enter para salir:");
+				opcionPatente = _scan.nextLine();
+				
+				if (opcionPatente.equals("")) {
+					//salir
+				} else {
+					sedan = getSedanByPatente(_sedanList, opcionPatente, _arrendar);
+					if ( sedan != null ) {
+						int posicion = sedan.getPosicion();
+						sedan.setDisponible(!_arrendar);
+						_sedanList.set(posicion, sedan);
+						System.out.println("\tSedan ha sido modificada correctamente.");
+					} else {
+						System.out.println("\tLa patente no existe!");
+					}
+				}
+				
+			} while(!opcionPatente.equals(""));
+		}
+
+		return _sedanList;
+	}
+	
+	/**
+	 * Arrendar coupe
+	 * @param _scan
+	 * @param _coupeList
+	 * @param _arrendar indica si es arriendo (true) o es devolver (false) 
+	 * @return retorno el arreglo de objetos del coupe
+	 */
+	private static ArrayList<Coupe> onRentCoupe( Scanner _scan, ArrayList<Coupe> _coupeList, boolean _arrendar) {
+		int x=0;
+		for (int i=0; i<_coupeList.size(); i+=1) {
+			Coupe coupeObjeto = _coupeList.get(i);
+			if (coupeObjeto.isDisponible() == _arrendar) {
+				System.out.println("\t"+coupeObjeto.conocerAuto());
+				x++;
+			}
+		}
+
+		if (x == 0) {
+			System.out.println("No hay vehículos para " + (_arrendar? "arrendar":"devolver") + ".");
+		} else {
+			String opcionPatente;
+			Coupe coupe = null;
+			
+			do {
+				System.out.println("\tIngrese una patente o enter para salir:");
+				opcionPatente = _scan.nextLine();
+				
+				if (opcionPatente.equals("")) {
+					//salir
+				} else {
+					coupe  = getCoupeByPatente(_coupeList,opcionPatente, _arrendar);
+					if (coupe != null) {
+						coupe.setDisponible(!_arrendar);
+						_coupeList.set(coupe.getPosicion(), coupe);
+						System.out.println("\tCoupe modificada correctamente.");
+						
+					} else {
+						System.out.println("\tLa patente no existe!");
+					}
+				}
+				
+			} while(!opcionPatente.equals(""));
+		}
+		
+		return _coupeList;
+		
 	}
 	
 	
@@ -191,129 +329,167 @@ public class Main {
 	 * Obtengo la Camioneta en base a la patente solo si está disponible
 	 * @param _lista listado de camionetas donde buscar
 	 * @param _patente patente a buscar
+	 * @param soloDisponibles indica si buscamos solo los disponibles o todos.
 	 * @return puede ser null (no existe) o el elemento buscado
 	 */
 	private static Camioneta getCamionetaByPatente(ArrayList<Camioneta> _lista, String _patente, boolean soloDisponibles) {
 		for ( int i=0; i<_lista.size(); i+=1) {
-			
-			if (soloDisponibles) {
-				if ( _lista.get(i).isDisponible() && _lista.get(i).getPatente().equals(_patente)) {  
-					return _lista.get(i);
-				}
-			} else {
-				if ( _lista.get(i).getPatente().equals(_patente)) {  
-					return _lista.get(i);
-				}
+			if ( _lista.get(i).isDisponible() == soloDisponibles && _lista.get(i).getPatente().equals(_lista.get(i).formatoPatente(_patente))) {
+				return _lista.get(i);
 			}
-			
 		}
 		return null;
 	}
 
 	/**
-	 * 
+	 * Obtengo el SUV en base a la patente
 	 * @param _lista de SUV
 	 * @param _patente
+	 * @param soloDisponibles indica si buscamos solo los disponibles o todos.
 	 * @return
 	 */
 	private static SUV getSUVByPatente( ArrayList<SUV> _lista, String _patente, boolean soloDisponibles) {
 		for ( int i=0; i<_lista.size(); i+=1) {
-			if (soloDisponibles) {
-				if ( _lista.get(i).isDisponible() && _lista.get(i).getPatente().equals(_patente)) {  
-					return _lista.get(i);
-				}
-			} else {
-				if ( _lista.get(i).getPatente().equals(_patente)) {  
-					return _lista.get(i);
-				}
+			if ( _lista.get(i).isDisponible() == soloDisponibles && _lista.get(i).getPatente().equals(_lista.get(i).formatoPatente(_patente))) {
+				return _lista.get(i);
 			}
 		}
 		return null;
 	}
 	
 	/**
-	 * 
+	 * Obtengo el Sedan en base a la patente
 	 * @param _lista de Sedan
 	 * @param _patente
+	 * @param soloDisponibles indica si buscamos solo los disponibles o todos.
 	 * @return
 	 */
 	private static Sedan getSedanByPatente( ArrayList<Sedan> _lista, String _patente, boolean soloDisponibles) {
-		
 		for ( int i=0; i<_lista.size(); i+=1) {
-			if (soloDisponibles) {
-				if ( _lista.get(i).isDisponible() && _lista.get(i).getPatente().equals(_patente)) {  
-					return _lista.get(i);
-				}
-			} else {
-				if ( _lista.get(i).getPatente().equals(_patente)) {  
-					return _lista.get(i);
-				}
+			if ( _lista.get(i).isDisponible() == soloDisponibles && _lista.get(i).getPatente().equals(_lista.get(i).formatoPatente(_patente))) {
+				return _lista.get(i);
 			}
 		}
-		
 		return null;
-		
 	}
 
 	/**
-	 * 
+	 *  Obtengo el Coupe en base a la patente
 	 * @param _lista de Coupe
 	 * @param _patente
+	 * @param soloDisponibles indica si buscamos solo los disponibles o todos.
 	 * @return
 	 */
 	private static Coupe getCoupeByPatente( ArrayList<Coupe> _lista, String _patente, boolean soloDisponibles) {
-		
 		for ( int i=0; i<_lista.size(); i+=1) {
-			if (soloDisponibles) {
-				if ( _lista.get(i).isDisponible() && _lista.get(i).getPatente().equals(_patente)) {  
-					return _lista.get(i);
-				}
-			} else {
-				if ( _lista.get(i).getPatente().equals(_patente)) {  
-					return _lista.get(i);
-				}
+			if ( _lista.get(i).isDisponible() == soloDisponibles && _lista.get(i).getPatente().equals(_lista.get(i).formatoPatente(_patente))) {
+				return _lista.get(i);
 			}
 		}
-		
 		return null;
-		
 	}
 	
+	/**
+	 * Lista automóvilos
+	 * @param _camionetasList
+	 * @param _suvList
+	 * @param _sedanList
+	 * @param _coupeList
+	 */
 	private static void listarAutomoviles(
 			ArrayList<Camioneta> _camionetasList,
 			ArrayList<SUV> _suvList,
 			ArrayList<Sedan> _sedanList,
-			ArrayList<Coupe> _coupeList
+			ArrayList<Coupe> _coupeList,
+			boolean isDisponibles
 	) {
-		
 		for (int i =0; i<_camionetasList.size(); i+=1) {
 			Camioneta camionetaObjeto = _camionetasList.get(i);
-			if (camionetaObjeto.isDisponible()) {
+			if (camionetaObjeto.isDisponible() == isDisponibles) {
 				System.out.println("\t"+camionetaObjeto.toString());
 			}
 		}
 		
 		for (int i =0; i<_suvList.size(); i+=1) {
 			SUV suvObjeto = _suvList.get(i);
-			if (suvObjeto.isDisponible()) {
+			if (suvObjeto.isDisponible() == isDisponibles) {
 				System.out.println("\t"+suvObjeto.toString());
 			}
 		}
 		for (int i =0; i<_sedanList.size(); i+=1) {
 			Sedan sedanObjeto = _sedanList.get(i);
-			if (sedanObjeto.isDisponible()) {
+			if (sedanObjeto.isDisponible() == isDisponibles) {
 				System.out.println("\t"+sedanObjeto.toString());
 			}
 		}
 		for (int i =0; i<_coupeList.size(); i+=1) {
 			Coupe coupeObjeto = _coupeList.get(i);
-			if (coupeObjeto.isDisponible()) {
+			if (coupeObjeto.isDisponible() == isDisponibles) {
 				System.out.println("\t"+coupeObjeto.toString());
 			}
 		}
-		
-		
 	}
 	
+	/**
+	 * Obtiene la suma de los vehiculos que no están disponibles 
+	 * @param _camionetasList
+	 * @param _suvList
+	 * @param _sedanList
+	 * @param _coupeList
+	 * @return el valor de la suma
+	 */
+	private static int sumarArriendos(
+			ArrayList<Camioneta> _camionetasList,
+			ArrayList<SUV> _suvList,
+			ArrayList<Sedan> _sedanList,
+			ArrayList<Coupe> _coupeList
+	) {
+		int suma=0;
+		for (int i =0; i<_camionetasList.size(); i+=1) {
+			Camioneta camionetaObjeto = _camionetasList.get(i);
+			if (!camionetaObjeto.isDisponible()) {
+				suma += camionetaObjeto.getValor();
+			}
+		}
+		
+		for (int i =0; i<_suvList.size(); i+=1) {
+			SUV suvObjeto = _suvList.get(i);
+			if (!suvObjeto.isDisponible()) {
+				suma += suvObjeto.getValor();
+			}
+		}
+		for (int i =0; i<_sedanList.size(); i+=1) {
+			Sedan sedanObjeto = _sedanList.get(i);
+			if (!sedanObjeto.isDisponible()) {
+				suma += sedanObjeto.getValor();
+			}
+		}
+		for (int i =0; i<_coupeList.size(); i+=1) {
+			Coupe coupeObjeto = _coupeList.get(i);
+			if (!coupeObjeto.isDisponible()) {
+				suma += coupeObjeto.getValor();
+			}
+		}
+		
+		return suma;
+	}
+	
+	private static String generatePatente() {
+		
+		String universo = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	    Random random = new Random();
+		
+		String patente = "";
+
+		for (int i= 0; i<4; i+=1) {
+			patente += universo.charAt(random.nextInt(universo.length()));
+		}
+		for (int i= 0; i<2; i+=1) {
+			patente += random.nextInt(1,9);
+		}
+		
+		
+		return patente;
+	}
 	
 }

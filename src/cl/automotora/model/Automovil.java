@@ -61,10 +61,6 @@ public class Automovil implements IAutomovil {
 		return posicion;
 	}
 
-	public void setPosicion(int posicion) {
-		this.posicion = posicion;
-	}
-
 	public boolean isDisponible() {
 		return disponible;
 	}
